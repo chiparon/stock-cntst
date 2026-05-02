@@ -90,11 +90,13 @@ def build_features(prices: pd.DataFrame) -> pd.DataFrame:
 
     prices = prices.copy()
     prices["date"] = pd.to_datetime(prices["date"])
-    panel = (
-        prices.groupby("stock_code", group_keys=False)
-        .apply(_per_stock_features)
-        .reset_index(drop=True)
-    )
+    parts = []
+    for code, stock_df in prices.groupby("stock_code", sort=False):
+        featured = _per_stock_features(stock_df)
+        if "stock_code" not in featured.columns:
+            featured["stock_code"] = str(code).zfill(6)
+        parts.append(featured)
+    panel = pd.concat(parts, ignore_index=True)
     panel = _cross_sectional_ranks(panel)
     return panel
 
