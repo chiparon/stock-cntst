@@ -12,8 +12,8 @@ Rules
 
 Usage
 -----
-  python validate_submission.py submission.csv
-  python validate_submission.py submission.csv --constituents data/constituents.csv
+  python scripts/validate_submission.py submission.csv
+  python scripts/validate_submission.py submission.csv --constituents data/constituents.csv
 """
 from __future__ import annotations
 

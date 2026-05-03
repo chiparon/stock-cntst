@@ -23,7 +23,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-DATA_DIR = Path(__file__).parent / "data"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PROJECT_ROOT / "data"
 
 
 def _stock_return(df: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> tuple[float, str]:

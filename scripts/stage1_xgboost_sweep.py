@@ -8,8 +8,8 @@ that can be reused in the report.
 
 Usage
 -----
-  python stage1_xgboost_sweep.py
-  python stage1_xgboost_sweep.py --as-of 20260421 --out-dir submissions
+  python scripts/stage1_xgboost_sweep.py
+  python scripts/stage1_xgboost_sweep.py --as-of 20260421 --out-dir submissions
 """
 from __future__ import annotations
 
@@ -19,6 +19,12 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = PROJECT_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 import numpy as np
 import pandas as pd
@@ -35,7 +41,7 @@ from baseline_xgboost import (
     build_portfolio,
     rank_ic,
 )
-from features import (
+from csi500_ml.features import (
     FEATURE_COLUMNS,
     FORWARD_HORIZON,
     TARGET_COLUMN,
@@ -240,11 +246,11 @@ def write_report(
         f"- Packages: pandas {pd.__version__}, numpy {np.__version__}, pyarrow {pyarrow.__version__}, xgboost {xgboost.__version__}, sklearn {sklearn.__version__}, scipy {scipy.__version__}",
         f"- Data: prices rows {len(prices):,}, stocks {prices['stock_code'].nunique()}, dates {data_dates.min().date()} to {data_dates.max().date()}, constituents {constituents['stock_code'].nunique()}",
         f"- Git status: {git_status_short()}",
-        f"- Command: `python stage1_xgboost_sweep.py --prices {args.prices} --constituents {args.constituents} --out-dir {args.out_dir} --report {args.report}`",
+        f"- Command: `python scripts/stage1_xgboost_sweep.py --prices {args.prices} --constituents {args.constituents} --out-dir {args.out_dir} --report {args.report}`",
         "",
         "## Method",
         "",
-        "- Factors: reused the official technical factors in `features.py`, including recent returns, volatility, volume z-score, turnover average, moving-average distance, RSI, and cross-sectional ranks.",
+        "- Factors: reused the technical factors in `src/csi500_ml/features.py`, including recent returns, volatility, volume z-score, turnover average, moving-average distance, RSI, and cross-sectional ranks.",
         "- Model: XGBoost regressor trained from scratch to predict 5-trading-day forward return.",
         "- Split: time-based train/validation split from the baseline, with a 5-trading-day embargo before the last 10 validation trading days.",
         f"- Training rows: {len(train_df):,}; validation rows: {len(val_df):,}; train end: {train_df['date'].max().date()}; validation start: {val_df['date'].min().date()}; prediction date: {pred_date.date()}.",
@@ -275,8 +281,8 @@ def write_report(
             "",
             "```powershell",
             ".\\.conda\\python.exe -m pip install -r requirements.txt",
-            ".\\.conda\\python.exe stage1_xgboost_sweep.py",
-            ".\\.conda\\python.exe validate_submission.py submissions/week1.csv",
+            ".\\.conda\\python.exe scripts\\stage1_xgboost_sweep.py",
+            ".\\.conda\\python.exe scripts\\validate_submission.py submissions/week1.csv",
             "```",
             "",
         ]

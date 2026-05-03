@@ -9,10 +9,10 @@ Produces three files under ./data/ :
 Usage
 -----
   # initial download (slow: ~500 API calls, expect 10-30 min)
-  python download_data.py --start 20250101 --end 20260421
+  python scripts/download_data.py --start 20250101 --end 20260421
 
   # incremental update: resume from max date already in prices.parquet
-  python download_data.py --update --end 20260430
+  python scripts/download_data.py --update --end 20260430
 """
 from __future__ import annotations
 
@@ -24,7 +24,8 @@ import akshare as ak
 import pandas as pd
 from tqdm import tqdm
 
-DATA_DIR = Path(__file__).parent / "data"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DATA_DIR = PROJECT_ROOT / "data"
 CSI500_SYMBOL = "000905"
 
 

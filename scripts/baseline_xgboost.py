@@ -4,7 +4,7 @@ XGBoost baseline for the CSI500 stock-selection competition.
 Pipeline
 --------
 1. Load data/prices.parquet
-2. Build features + 5-day forward target (features.py)
+2. Build features + 5-day forward target (src/csi500_ml/features.py)
 3. Train XGBoost on all but the last `EMBARGO_DAYS` training rows
 4. Validate on those held-out rows (reports rank IC as sanity check)
 5. Predict on the most recent date
@@ -12,26 +12,32 @@ Pipeline
 
 Usage
 -----
-  python baseline_xgboost.py                       # predict from latest data
-  python baseline_xgboost.py --as-of 20260503      # predict as of a given date
-  python baseline_xgboost.py --top-k 50 --out submissions/week1.csv
+  python scripts/baseline_xgboost.py                       # predict from latest data
+  python scripts/baseline_xgboost.py --as-of 20260503      # predict as of a given date
+  python scripts/baseline_xgboost.py --top-k 50 --out submissions/week1.csv
 """
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_DIR = PROJECT_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from scipy.stats import spearmanr
 
-from features import (
+from csi500_ml.features import (
     FEATURE_COLUMNS, TARGET_COLUMN, FORWARD_HORIZON,
     build_features, training_frame, prediction_frame,
 )
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = PROJECT_ROOT / "data"
 VAL_DAYS = 10               # number of trading days in the validation window
 EMBARGO_DAYS = 5            # gap between train end and val start (>= FORWARD_HORIZON
                             # so training targets don't reach into val dates)

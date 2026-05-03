@@ -10,11 +10,11 @@
  M features.py
 ?? reports/
 ?? stage1_xgboost_sweep.py
-- Command: `python stage1_xgboost_sweep.py --prices E:\Eproject\ml-competition-sp26\data\prices.parquet --constituents E:\Eproject\ml-competition-sp26\data\constituents.csv --out-dir submissions --report reports/stage1_experiment_log.md`
+- Command: `python scripts/stage1_xgboost_sweep.py --prices E:\Eproject\ml-competition-sp26\data\prices.parquet --constituents E:\Eproject\ml-competition-sp26\data\constituents.csv --out-dir submissions --report reports/stage1_experiment_log.md`
 
 ## Method
 
-- Factors: reused the official technical factors in `features.py`, including recent returns, volatility, volume z-score, turnover average, moving-average distance, RSI, and cross-sectional ranks.
+- Factors: reused the official technical factors in `src/csi500_ml/features.py`, including recent returns, volatility, volume z-score, turnover average, moving-average distance, RSI, and cross-sectional ranks.
 - Model: XGBoost regressor trained from scratch to predict 5-trading-day forward return.
 - Split: time-based train/validation split from the baseline, with a 5-trading-day embargo before the last 10 validation trading days.
 - Training rows: 119,363; validation rows: 4,989; train end: 2026-04-01; validation start: 2026-04-10; prediction date: 2026-04-30.
@@ -45,6 +45,6 @@
 
 ```powershell
 .\.conda\python.exe -m pip install -r requirements.txt
-.\.conda\python.exe stage1_xgboost_sweep.py
-.\.conda\python.exe validate_submission.py submissions/week1.csv
+.\.conda\python.exe scripts\stage1_xgboost_sweep.py
+.\.conda\python.exe scripts\validate_submission.py submissions/week1.csv
 ```

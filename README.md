@@ -113,7 +113,7 @@ for context but do not affect the grade.
 - Channel: **Gradescope**. Upload before the deadline in §4.
 - Submissions are overwritten by later uploads; **only the final version on
   Gradescope before the deadline counts**.
-- Run `python validate_submission.py <file>` locally first — Gradescope runs
+- Run `python scripts/validate_submission.py <file>` locally first — Gradescope runs
   the same checks and rejects anything that fails.
 
 ### 9. Submission Format
@@ -165,32 +165,37 @@ applied retroactively to already-submitted portfolios.
 pip install -r requirements.txt
 
 # 2. Download the data snapshot (first time is slow — ~10 min)
-python download_data.py --start 20250101 --end 20260421
+python scripts/download_data.py --start 20250101 --end 20260421
 
 # 3. Run the baseline end-to-end
-python baseline_xgboost.py --out submissions/week1.csv
+python scripts/baseline_xgboost.py --out submissions/week1.csv
 
 # 4. Check your submission against the rules
-python validate_submission.py submissions/week1.csv
+python scripts/validate_submission.py submissions/week1.csv
 
 # 5. Later, before submitting week 2, refresh data
-python download_data.py --update --end 20260510
+python scripts/download_data.py --update --end 20260510
 ```
 
-## Files
+## Project Layout
 
-| File | Purpose |
+| Path | Purpose |
 | --- | --- |
-| `download_data.py` | Fetch CSI500 constituents, OHLCV, and index from akshare |
-| `features.py` | Feature engineering module (importable) |
-| `baseline_xgboost.py` | End-to-end GBDT baseline |
-| `validate_submission.py` | Pre-submission constraint check |
-| `score_submission.py` | Realized-return scoring (used by TAs; works locally too) |
-| `submission_example.csv` | Format reference |
+| `src/csi500_ml/` | Importable project code shared by scripts |
+| `src/csi500_ml/features.py` | Feature engineering module |
+| `scripts/download_data.py` | Fetch CSI500 constituents, OHLCV, and index from akshare |
+| `scripts/baseline_xgboost.py` | End-to-end GBDT baseline |
+| `scripts/stage1_xgboost_sweep.py` | Stage-1 XGBoost experiment sweep and report logger |
+| `scripts/validate_submission.py` | Pre-submission constraint check |
+| `scripts/score_submission.py` | Realized-return scoring (used by TAs; works locally too) |
+| `data/` | Downloaded market data cache |
+| `submissions/` | Generated portfolio CSV files |
+| `reports/` | Experiment notes and report artifacts |
+| `examples/submission_example.csv` | Format reference |
 
 ## Data
 
-`download_data.py` writes three files under `./data/`:
+`scripts/download_data.py` writes three files under `./data/`:
 
 - **`constituents.csv`** — current CSI500 members (`stock_code`, `stock_name`, `as_of_date`).
 - **`prices.parquet`** — daily bars per constituent. Columns: `date`,
@@ -200,7 +205,7 @@ python download_data.py --update --end 20260510
   in **percent**.
 - **`index.parquet`** — daily bars for the CSI500 index itself (the benchmark).
 
-Note: `constituents.csv` is filtered at the end of `download_data.py` to
+Note: `constituents.csv` is filtered at the end of `scripts/download_data.py` to
 include only codes whose price data was fetched successfully. If a new CSI500
 constituent doesn't yet have history available through akshare's sina
 backend, it is dropped from your universe — you cannot select it.
@@ -218,11 +223,11 @@ constituent changes.
 
 ```bash
 # first time (full history — ~10 min for 500 stocks × 1 year)
-python download_data.py --start 20250101 --end 20260421
+python scripts/download_data.py --start 20250101 --end 20260421
 
 # later (incremental — resumes from max date in prices.parquet)
-python download_data.py --update --end 20260503  # before submission 1
-python download_data.py --update --end 20260510  # before submission 2
+python scripts/download_data.py --update --end 20260503  # before submission 1
+python scripts/download_data.py --update --end 20260510  # before submission 2
 ```
 
 The `--update` flag reads `data/prices.parquet`, finds the latest date
@@ -245,7 +250,7 @@ stock_code,weight
 ```
 
 `stock_code` is a zero-padded 6-digit string.  Upload through the course LMS
-(filename `<team>_week<N>.csv`).  Run `validate_submission.py` first — we run
+(filename `<team>_week<N>.csv`).  Run `scripts/validate_submission.py` first — we run
 the same checks on the server.
 
 ## Caveats & tips
