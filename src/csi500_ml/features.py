@@ -14,14 +14,52 @@ import numpy as np
 import pandas as pd
 
 # columns used downstream by the baseline
-FEATURE_COLUMNS = [
+BASE_FEATURE_COLUMNS = [
     "ret_1d", "ret_5d", "ret_10d", "ret_20d", "ret_60d",
     "vol_20d", "volume_z_20d", "turnover_ma_20d",
     "close_over_ma20", "close_over_ma60", "rsi_14",
     "ret_5d_rank", "ret_20d_rank", "vol_20d_rank",
 ]
+FEATURE_COLUMNS = BASE_FEATURE_COLUMNS.copy()
 TARGET_COLUMN = "target_5d"
 FORWARD_HORIZON = 5
+
+RANK_NORMALIZED_BASES = [
+    "ret_1d", "ret_3d", "ret_5d", "ret_10d", "ret_20d", "ret_60d",
+    "vol_5d", "vol_10d", "vol_20d", "vol_5d_over_20d", "vol_10d_over_20d",
+    "volume_z_20d", "log_volume_z_20d", "turnover_ma_20d", "log_turnover_ma_20d",
+    "close_over_ma20", "close_over_ma60", "rsi_14",
+    "ret_20d_minus_5d", "ret_60d_minus_20d",
+]
+
+FEATURE_GROUPS = {
+    "rank_all": [f"{col}_rank" for col in RANK_NORMALIZED_BASES],
+    "vol_regime": [
+        "vol_5d", "vol_10d", "vol_5d_over_20d", "vol_10d_over_20d",
+        "vol_5d_rank", "vol_10d_rank", "vol_5d_over_20d_rank", "vol_10d_over_20d_rank",
+    ],
+    "liquidity_log": [
+        "log_volume_z_20d", "log_turnover_ma_20d",
+        "log_volume_z_20d_rank", "log_turnover_ma_20d_rank",
+    ],
+    "momentum_shape": [
+        "ret_3d", "ret_20d_minus_5d", "ret_60d_minus_20d",
+        "ret_3d_rank", "ret_20d_minus_5d_rank", "ret_60d_minus_20d_rank",
+    ],
+    "mom_ret3": ["ret_3d", "ret_3d_rank"],
+    "mom_trend_20_5": ["ret_20d_minus_5d", "ret_20d_minus_5d_rank"],
+    "mom_trend_60_20": ["ret_60d_minus_20d", "ret_60d_minus_20d_rank"],
+}
+
+
+def feature_columns(enabled_groups: list[str] | tuple[str, ...] | None = None) -> list[str]:
+    """Return baseline feature columns plus optional feature-group columns."""
+    cols = list(BASE_FEATURE_COLUMNS)
+    for group in enabled_groups or []:
+        if group not in FEATURE_GROUPS:
+            raise ValueError(f"Unknown feature group {group!r}; available: {sorted(FEATURE_GROUPS)}")
+        cols.extend(FEATURE_GROUPS[group])
+    return list(dict.fromkeys(cols))
 
 
 def _per_stock_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -30,22 +68,37 @@ def _per_stock_features(df: pd.DataFrame) -> pd.DataFrame:
     close = df["close"]
 
     df["ret_1d"] = close.pct_change(1)
+    df["ret_3d"] = close.pct_change(3)
     df["ret_5d"] = close.pct_change(5)
     df["ret_10d"] = close.pct_change(10)
     df["ret_20d"] = close.pct_change(20)
     df["ret_60d"] = close.pct_change(60)
+    df["ret_20d_minus_5d"] = df["ret_20d"] - df["ret_5d"]
+    df["ret_60d_minus_20d"] = df["ret_60d"] - df["ret_20d"]
 
+    df["vol_5d"] = df["ret_1d"].rolling(5).std()
+    df["vol_10d"] = df["ret_1d"].rolling(10).std()
     df["vol_20d"] = df["ret_1d"].rolling(20).std()
+    vol_20d_safe = df["vol_20d"].replace(0, np.nan)
+    df["vol_5d_over_20d"] = df["vol_5d"] / vol_20d_safe
+    df["vol_10d_over_20d"] = df["vol_10d"] / vol_20d_safe
 
     vol = df["volume"].astype(float)
     vol_mean = vol.rolling(20).mean()
     vol_std = vol.rolling(20).std().replace(0, np.nan)
     df["volume_z_20d"] = (vol - vol_mean) / vol_std
+    log_vol = np.log1p(vol.clip(lower=0))
+    log_vol_mean = log_vol.rolling(20).mean()
+    log_vol_std = log_vol.rolling(20).std().replace(0, np.nan)
+    df["log_volume_z_20d"] = (log_vol - log_vol_mean) / log_vol_std
 
     if "turnover" in df.columns:
-        df["turnover_ma_20d"] = df["turnover"].astype(float).rolling(20).mean()
+        turnover = df["turnover"].astype(float)
+        df["turnover_ma_20d"] = turnover.rolling(20).mean()
+        df["log_turnover_ma_20d"] = np.log1p(turnover.clip(lower=0)).rolling(20).mean()
     else:
         df["turnover_ma_20d"] = np.nan
+        df["log_turnover_ma_20d"] = np.nan
 
     df["close_over_ma20"] = close / close.rolling(20).mean() - 1.0
     df["close_over_ma60"] = close / close.rolling(60).mean() - 1.0
@@ -62,7 +115,9 @@ def _per_stock_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def _cross_sectional_ranks(panel: pd.DataFrame) -> pd.DataFrame:
     """Daily cross-sectional rank of selected features (values in [0, 1])."""
-    for base in ["ret_5d", "ret_20d", "vol_20d"]:
+    for base in RANK_NORMALIZED_BASES:
+        if base not in panel.columns:
+            continue
         panel[f"{base}_rank"] = (
             panel.groupby("date")[base].rank(method="average", pct=True)
         )
