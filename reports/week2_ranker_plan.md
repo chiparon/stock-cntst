@@ -100,3 +100,18 @@ still does not beat the regressor control on mean excess (`+3.580%`) or worst
 excess (`+0.818%`). Treat it as a stable fallback candidate, not as the primary
 week2 model. The next check, if we keep investigating Ranker, should be an
 8-anchor stability gate for this single recovered configuration only.
+
+## Final 8-anchor Stability Check
+
+The recovered Ranker fallback was checked with a wider gate in
+`reports/week2_ranker_final_sweep_8x120.md`: `top_dates=8` and
+`recent_lookback=120`.
+
+- Configuration:
+  `top20_binary_pairwise_ndcg30_stable_d4_mcw20_l10_sub07`, `top_k=30`,
+  `equal`.
+- 8-anchor result: mean `+0.846%`, worst `-4.121%`, win rate `0.88`.
+
+Decision: reject Ranker as a week2 candidate. The 5-anchor rescue result does
+not survive the wider stability gate. Push this branch as a documented negative
+research path, then return week2 development to the regressor-control line.

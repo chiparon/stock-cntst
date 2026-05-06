@@ -237,3 +237,8 @@ with mean `+1.793%` and worst `+0.402%`. This passes the min-excess rescue
 criterion, but it is still weaker than the regressor control (`+3.580%` mean,
 `+0.818%` worst). Decision: keep it as a stable fallback candidate and do not
 replace the regressor control unless it also survives a wider 8-anchor gate.
+
+The wider 8-anchor gate is logged in
+`reports/week2_ranker_final_sweep_8x120.md`. The recovered Ranker fallback does
+not survive: mean `+0.846%`, worst `-4.121%`, win rate `0.88`. Decision: reject
+Ranker as a week2 candidate and return to the regressor-control line.

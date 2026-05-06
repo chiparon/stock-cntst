@@ -96,6 +96,16 @@ def parse_csv(value: str) -> list[str]:
     return [v.strip() for v in value.split(",") if v.strip()]
 
 
+def filter_named_specs(specs: list[dict], names: list[str] | None, label: str) -> list[dict]:
+    if not names:
+        return specs
+    lookup = {spec["name"]: spec for spec in specs}
+    missing = sorted(set(names) - set(lookup))
+    if missing:
+        raise ValueError(f"Unknown {label}: {missing}; available: {sorted(lookup)}")
+    return [lookup[name] for name in names]
+
+
 def format_params(params: dict) -> str:
     return ", ".join(f"{key}={value}" for key, value in params.items())
 
@@ -270,6 +280,8 @@ def main() -> None:
     parser.add_argument("--negative-multiplier", type=int, default=10)
     parser.add_argument("--max-param-specs", type=int, default=None)
     parser.add_argument("--max-objective-specs", type=int, default=None)
+    parser.add_argument("--only-param-specs", default=None)
+    parser.add_argument("--only-objective-specs", default=None)
     parser.add_argument("--report", default="reports/week2_ranker_final_sweep_log.md")
     args = parser.parse_args()
 
@@ -279,6 +291,8 @@ def main() -> None:
     weight_rules = parse_csv(args.weight_rules)
     param_specs = PARAM_SPECS[: args.max_param_specs] if args.max_param_specs else PARAM_SPECS
     objective_specs = OBJECTIVE_SPECS[: args.max_objective_specs] if args.max_objective_specs else OBJECTIVE_SPECS
+    param_specs = filter_named_specs(param_specs, parse_csv(args.only_param_specs or ""), "param specs")
+    objective_specs = filter_named_specs(objective_specs, parse_csv(args.only_objective_specs or ""), "objective specs")
     feature_cols = feature_columns(feature_groups)
 
     print(f">> Loading {args.prices}")
