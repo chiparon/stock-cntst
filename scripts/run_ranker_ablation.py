@@ -66,7 +66,15 @@ CURRENT_PARAMS = {
     "reg_lambda": 5.0,
 }
 
-LABEL_VARIANTS = ["rank_decile", "top20_binary", "rank_ventile"]
+DEFAULT_LABEL_VARIANTS = ["rank_decile", "top20_binary", "rank_ventile"]
+SUPPORTED_LABEL_VARIANTS = [
+    "rank_decile",
+    "rank_ventile",
+    "top10_binary",
+    "top15_binary",
+    "top20_binary",
+    "top30_binary",
+]
 
 
 def parse_groups(value: str | None) -> list[str]:
@@ -75,10 +83,10 @@ def parse_groups(value: str | None) -> list[str]:
 
 def parse_variants(value: str | None) -> list[str]:
     variants = [v.strip() for v in (value or "").split(",") if v.strip()]
-    variants = variants or LABEL_VARIANTS
-    unknown = sorted(set(variants) - set(LABEL_VARIANTS))
+    variants = variants or DEFAULT_LABEL_VARIANTS
+    unknown = sorted(set(variants) - set(SUPPORTED_LABEL_VARIANTS))
     if unknown:
-        raise ValueError(f"Unknown label variants: {unknown}; available: {LABEL_VARIANTS}")
+        raise ValueError(f"Unknown label variants: {unknown}; available: {SUPPORTED_LABEL_VARIANTS}")
     return variants
 
 
@@ -102,6 +110,12 @@ def ranking_label(df: pd.DataFrame, variant: str) -> pd.Series:
         return (ranks >= 0.8).astype(np.uint32)
     if variant == "rank_ventile":
         return np.floor((ranks * 20).clip(upper=19.999)).astype(np.uint32)
+    if variant == "top10_binary":
+        return (ranks >= 0.9).astype(np.uint32)
+    if variant == "top15_binary":
+        return (ranks >= 0.85).astype(np.uint32)
+    if variant == "top30_binary":
+        return (ranks >= 0.7).astype(np.uint32)
     raise ValueError(f"Unknown label variant {variant!r}")
 
 
@@ -111,14 +125,16 @@ def train_ranker_with_columns(
     feature_cols: list[str],
     label_variant: str,
     params: dict | None = None,
+    objective: str = "rank:pairwise",
+    eval_metric: str = "ndcg@30",
 ) -> xgb.XGBRanker:
     train_sorted = sorted_for_ranker(train_df)
     val_sorted = sorted_for_ranker(val_df)
     model_params = CURRENT_PARAMS if params is None else params
     model = xgb.XGBRanker(
         **model_params,
-        objective="rank:pairwise",
-        eval_metric="ndcg@30",
+        objective=objective,
+        eval_metric=eval_metric,
         tree_method="hist",
         n_jobs=-1,
         early_stopping_rounds=30,
@@ -141,6 +157,8 @@ def train_ranker_for_anchor(
     feature_cols: list[str],
     label_variant: str,
     params: dict | None = None,
+    objective: str = "rank:pairwise",
+    eval_metric: str = "ndcg@30",
 ) -> xgb.XGBRanker:
     dates = np.sort(panel["date"].unique())
     anchor_idx = int(np.searchsorted(dates, np.datetime64(anchor)))
@@ -148,7 +166,15 @@ def train_ranker_for_anchor(
     train_pool = training_frame(panel, max_date=cutoff)
     train_pool = train_pool.dropna(subset=feature_cols + [TARGET_COLUMN]).copy()
     train_df, val_df = split_internal_train_val(train_pool)
-    return train_ranker_with_columns(train_df, val_df, feature_cols, label_variant, params=params)
+    return train_ranker_with_columns(
+        train_df,
+        val_df,
+        feature_cols,
+        label_variant,
+        params=params,
+        objective=objective,
+        eval_metric=eval_metric,
+    )
 
 
 def evaluate_scores(
@@ -288,7 +314,7 @@ def main() -> None:
     parser.add_argument("--index", default=str(DATA_DIR / "index.parquet"))
     parser.add_argument("--as-of", default=None, help="YYYYMMDD; defaults to latest date in data")
     parser.add_argument("--feature-groups", default=",".join(DEFAULT_FEATURE_GROUPS))
-    parser.add_argument("--label-variants", default=",".join(LABEL_VARIANTS))
+    parser.add_argument("--label-variants", default=",".join(DEFAULT_LABEL_VARIANTS))
     parser.add_argument("--top-dates", type=int, default=5)
     parser.add_argument("--recent-lookback", type=int, default=80)
     parser.add_argument("--min-stocks-per-date", type=int, default=450)

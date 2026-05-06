@@ -228,3 +228,12 @@ worst `-1.490%`, while the best stabilized Ranker alternative improves worst
 loss only to `-0.371%` with mean `+2.579%`. Decision: close Ranker as the
 primary week2 direction and move back to the regressor control for small
 interaction-feature research.
+
+The final Ranker sweep is logged in `reports/week2_ranker_final_sweep_log.md`.
+It added top-bucket threshold variants and `rank:ndcg`. This recovered a
+non-negative worst-window Ranker setting:
+`top20_binary_pairwise_ndcg30_stable_d4_mcw20_l10_sub07`, `top_k=30`, `equal`,
+with mean `+1.793%` and worst `+0.402%`. This passes the min-excess rescue
+criterion, but it is still weaker than the regressor control (`+3.580%` mean,
+`+0.818%` worst). Decision: keep it as a stable fallback candidate and do not
+replace the regressor control unless it also survives a wider 8-anchor gate.

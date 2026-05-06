@@ -83,3 +83,20 @@ Decision: close Ranker as a primary week2 direction for now. Keep it as a logged
 negative result. The next week2 research direction should return to the current
 regressor control and test small interaction features, especially momentum times
 volatility and momentum times liquidity.
+
+## Final Sweep Readout
+
+The final Ranker sweep is logged in `reports/week2_ranker_final_sweep_log.md`.
+It tested top-bucket definitions (`top10`, `top15`, `top20`, `top30`) and both
+`rank:pairwise` and `rank:ndcg` objectives.
+
+This recovered one non-negative worst-window Ranker configuration:
+
+- `top20_binary_pairwise_ndcg30_stable_d4_mcw20_l10_sub07`, `top_k=30`,
+  `equal`: mean `+1.793%`, worst `+0.402%`, win rate `1.00`.
+
+Decision: Ranker is no longer a pure failure by the min-excess criterion, but it
+still does not beat the regressor control on mean excess (`+3.580%`) or worst
+excess (`+0.818%`). Treat it as a stable fallback candidate, not as the primary
+week2 model. The next check, if we keep investigating Ranker, should be an
+8-anchor stability gate for this single recovered configuration only.
