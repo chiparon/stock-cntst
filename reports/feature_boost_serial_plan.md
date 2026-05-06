@@ -10,10 +10,12 @@ with validation rank IC `0.1314`, but the local sanity portfolio for
 This means the main bottleneck is not simply another XGBoost parameter or a
 larger feature set. The current selection signal is still judged mainly by the
 last 10 labeled dates' rank IC, while the live task is a single as-of-date
-portfolio evaluated by short-horizon excess return. We are still preparing the
-week 1 submission; however, because week 1's evaluation window is shortened by
-the holiday calendar, the validation gate keeps using a 5-trading-day holding
-window to avoid overfitting to one compressed 3-trading-day event.
+portfolio evaluated by short-horizon excess return. Week 1 submission is now
+closed. The week1 candidate remains a reproducible completed artifact, and the
+active research context has moved to week 2. Because week 1's evaluation window
+was shortened by the holiday calendar, the validation gate still keeps using a
+5-trading-day holding window to avoid overfitting to one compressed
+3-trading-day event.
 
 ## Major Direction
 
@@ -192,3 +194,29 @@ at `+3.580%`.
 
 Decision: do not add index-relative features or score ensemble to the primary
 candidate. Keep the current candidate unchanged.
+
+## Week 2 Ranker Branch
+
+Week 2 begins with an objective-level XGBoost experiment rather than another
+feature stack. The branch `codex/week2-xgboost-ranker` adds
+`scripts/run_ranker_ablation.py` and documents the plan in
+`reports/week2_ranker_plan.md`.
+
+The ranker experiment holds features, anchors, and portfolio construction fixed:
+
+- Feature groups: `momentum_shape`.
+- Portfolio: `top_k=30`, `weight_rule=score_positive`.
+- Control: current XGBRegressor with raw 5-day forward return target.
+- Candidate: XGBRanker with date groups and ranking labels.
+
+Accepted label variants are `rank_decile`, `top20_binary`, and `rank_ventile`.
+XGBoost 3.2 requires non-negative integer relevance labels for ranking, so
+continuous return/rank labels are discretized before training. Ranker is accepted
+only if it improves the fixed-anchor 5-day excess-return gate without weakening
+worst-window excess return.
+
+First readout is logged in `reports/week2_ranker_ablation_log.md`. The current
+regressor control remains stronger: mean 5-day excess `+3.580%`, worst
+`+0.818%`. The best Ranker variant is `top20_binary`, with mean `+2.743%` and
+worst `-1.490%`. Decision: keep Ranker as a week2 research branch, but do not
+replace the control yet.
