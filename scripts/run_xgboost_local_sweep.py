@@ -385,7 +385,7 @@ def main() -> None:
     index_df["date"] = pd.to_datetime(index_df["date"])
 
     print(">> Building features")
-    panel = build_features(prices)
+    panel = build_features(prices, index_df=index_df)
     as_of = pd.Timestamp(args.as_of) if args.as_of else pd.Timestamp(panel["date"].max())
     feature_cols = feature_columns(FEATURE_GROUPS)
     anchor_feature_cols = feature_columns([])

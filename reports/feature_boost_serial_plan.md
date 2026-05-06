@@ -173,3 +173,22 @@ The strongest robust alternative is `d4_mcw20_l10_lr005_sub07`
 Decision: keep the current parameters as the primary candidate because they win
 on mean excess in both gates. Keep the sub07 variant as a robust fallback if the
 final risk preference shifts toward worst-window stability.
+
+## Index-relative And Ensemble Readout
+
+CSI500-relative features were added as optional group `index_relative` and tested
+under the fixed-anchor gate. Results are logged in
+`reports/index_relative_ablation_log.md`. The feature group is not accepted:
+
+- `momentum_shape`: mean 5-day excess `+2.808%`, worst `+0.797%`.
+- `momentum_shape,index_relative`: mean `+1.540%`, worst `+0.594%`.
+- `index_relative` alone: mean `+1.217%`, worst `-0.187%`.
+
+Score ensembling was also tested in `reports/score_ensemble_log.md`. Scores were
+converted to cross-sectional percentile ranks before averaging. The best ensemble
+(`primary_robust_70_30`) reached mean 5-day excess `+3.041%`, but this does not
+beat the raw-score primary portfolio from `reports/portfolio_ablation_log.md`
+at `+3.580%`.
+
+Decision: do not add index-relative features or score ensemble to the primary
+candidate. Keep the current candidate unchanged.

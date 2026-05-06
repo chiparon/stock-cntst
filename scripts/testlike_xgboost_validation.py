@@ -355,7 +355,7 @@ def main() -> None:
     index_df["date"] = pd.to_datetime(index_df["date"])
 
     print(">> Building features")
-    panel = build_features(prices)
+    panel = build_features(prices, index_df=index_df)
     enabled_groups = parse_groups(args.feature_groups)
     anchor_groups = parse_groups(args.anchor_feature_groups)
     feature_cols = feature_columns(enabled_groups)

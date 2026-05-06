@@ -52,6 +52,9 @@ ABLATIONS = [
     ("rank_vol", ["rank_all", "vol_regime"]),
     ("rank_liquidity", ["rank_all", "liquidity_log"]),
     ("rank_momentum", ["rank_all", "momentum_shape"]),
+    ("index_relative", ["index_relative"]),
+    ("momentum_index", ["momentum_shape", "index_relative"]),
+    ("rank_liquidity_index", ["rank_all", "liquidity_log", "index_relative"]),
     ("rank_vol_liquidity", ["rank_all", "vol_regime", "liquidity_log"]),
     ("rank_vol_liquidity_momentum", ["rank_all", "vol_regime", "liquidity_log", "momentum_shape"]),
 ]
@@ -59,6 +62,11 @@ ABLATIONS = [
 
 def format_groups(groups: list[str]) -> str:
     return ",".join(groups) if groups else "baseline"
+
+
+def parse_names(value: str | None) -> set[str] | None:
+    names = {item.strip() for item in (value or "").split(",") if item.strip()}
+    return names or None
 
 
 def best_result(results: list[dict]) -> dict:
@@ -170,6 +178,7 @@ def main() -> None:
     parser.add_argument("--min-stocks-per-date", type=int, default=450)
     parser.add_argument("--negative-multiplier", type=int, default=10)
     parser.add_argument("--max-experiments", type=int, default=None)
+    parser.add_argument("--only", default=None, help="Comma-separated ablation names to run.")
     parser.add_argument("--report", default="reports/feature_ablation_log.md")
     args = parser.parse_args()
 
@@ -181,7 +190,7 @@ def main() -> None:
     index_df["date"] = pd.to_datetime(index_df["date"])
 
     print(">> Building features")
-    panel = build_features(prices)
+    panel = build_features(prices, index_df=index_df)
     as_of = pd.Timestamp(args.as_of) if args.as_of else pd.Timestamp(panel["date"].max())
     anchor_feature_cols = feature_columns([])
     anchor_pred_df = prediction_frame(panel, as_of=as_of).dropna(subset=anchor_feature_cols)
@@ -205,8 +214,15 @@ def main() -> None:
     print(f"   adversarial AUC: {auc:.4f}")
     print(f"   anchors: {', '.join(d.date().isoformat() for d in anchors)}")
 
+    only = parse_names(args.only)
+    selected_ablations = [(name, groups) for name, groups in ABLATIONS if only is None or name in only]
+    if only is not None:
+        missing = sorted(only - {name for name, _ in selected_ablations})
+        if missing:
+            raise ValueError(f"Unknown ablation names: {missing}")
+
     ablation_results = []
-    for name, groups in ABLATIONS:
+    for name, groups in selected_ablations:
         ablation_results.append(
             evaluate_feature_set(panel, prices, index_df, anchors, name, groups, args.max_experiments)
         )

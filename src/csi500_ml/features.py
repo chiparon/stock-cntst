@@ -26,6 +26,7 @@ FORWARD_HORIZON = 5
 
 RANK_NORMALIZED_BASES = [
     "ret_1d", "ret_3d", "ret_5d", "ret_10d", "ret_20d", "ret_60d",
+    "rel_ret_5d", "rel_ret_20d", "rel_ret_60d",
     "vol_5d", "vol_10d", "vol_20d", "vol_5d_over_20d", "vol_10d_over_20d",
     "volume_z_20d", "log_volume_z_20d", "turnover_ma_20d", "log_turnover_ma_20d",
     "close_over_ma20", "close_over_ma60", "rsi_14",
@@ -49,6 +50,11 @@ FEATURE_GROUPS = {
     "mom_ret3": ["ret_3d", "ret_3d_rank"],
     "mom_trend_20_5": ["ret_20d_minus_5d", "ret_20d_minus_5d_rank"],
     "mom_trend_60_20": ["ret_60d_minus_20d", "ret_60d_minus_20d_rank"],
+    "index_relative": [
+        "index_ret_5d", "index_ret_20d", "index_ret_60d",
+        "rel_ret_5d", "rel_ret_20d", "rel_ret_60d",
+        "rel_ret_5d_rank", "rel_ret_20d_rank", "rel_ret_60d_rank",
+    ],
 }
 
 
@@ -124,7 +130,34 @@ def _cross_sectional_ranks(panel: pd.DataFrame) -> pd.DataFrame:
     return panel
 
 
-def build_features(prices: pd.DataFrame) -> pd.DataFrame:
+def _index_features(index_df: pd.DataFrame) -> pd.DataFrame:
+    """Benchmark features known as of each trading date."""
+    required = {"date", "close"}
+    missing = required - set(index_df.columns)
+    if missing:
+        raise ValueError(f"index_df is missing required columns: {missing}")
+
+    idx = index_df[["date", "close"]].copy()
+    idx["date"] = pd.to_datetime(idx["date"])
+    idx = idx.sort_values("date")
+    idx["index_ret_1d"] = idx["close"].pct_change(1)
+    idx["index_ret_5d"] = idx["close"].pct_change(5)
+    idx["index_ret_20d"] = idx["close"].pct_change(20)
+    idx["index_ret_60d"] = idx["close"].pct_change(60)
+    return idx.drop(columns=["close"])
+
+
+def _add_index_relative_features(panel: pd.DataFrame, index_df: pd.DataFrame | None) -> pd.DataFrame:
+    if index_df is None:
+        return panel
+    idx = _index_features(index_df)
+    panel = panel.merge(idx, on="date", how="left")
+    for horizon in [5, 20, 60]:
+        panel[f"rel_ret_{horizon}d"] = panel[f"ret_{horizon}d"] - panel[f"index_ret_{horizon}d"]
+    return panel
+
+
+def build_features(prices: pd.DataFrame, index_df: pd.DataFrame | None = None) -> pd.DataFrame:
     """Build a (date, stock_code) panel of features + target.
 
     Parameters
@@ -152,6 +185,7 @@ def build_features(prices: pd.DataFrame) -> pd.DataFrame:
             featured["stock_code"] = str(code).zfill(6)
         parts.append(featured)
     panel = pd.concat(parts, ignore_index=True)
+    panel = _add_index_relative_features(panel, index_df)
     panel = _cross_sectional_ranks(panel)
     return panel
 

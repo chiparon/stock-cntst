@@ -1,6 +1,6 @@
 # Feature Ablation Log
 
-- Generated at: 2026-05-04 17:14:02
+- Generated at: 2026-05-05 21:27:50
 - As-of date: 2026-04-30
 - Holding window: 5 trading days
 - Anchor selection feature groups: baseline
@@ -12,21 +12,24 @@
 | feature set | groups | n_features | best experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
 | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
 | momentum_shape | momentum_shape | 20 | concentrated_top30 | 30 | 0.0882 | +2.808% | +0.797% | 1.00 |
+| rank_liquidity | rank_all,liquidity_log | 36 | concentrated_top30 | 30 | 0.0788 | +2.184% | +0.598% | 1.00 |
 | mom_ret3_trend_60_20 | mom_ret3,mom_trend_60_20 | 18 | concentrated_top30 | 30 | 0.0977 | +1.992% | +0.672% | 1.00 |
-| rank_liquidity | rank_all,liquidity_log | 33 | concentrated_top30 | 30 | 0.1097 | +1.989% | +0.528% | 1.00 |
 | liquidity_log | liquidity_log | 18 | concentrated_top30 | 30 | 0.0693 | +1.878% | -0.385% | 0.80 |
-| rank_momentum | rank_all,momentum_shape | 34 | concentrated_top30 | 30 | 0.1155 | +1.838% | +0.837% | 1.00 |
+| rank_all | rank_all | 34 | concentrated_top30 | 30 | 0.0919 | +1.763% | +0.674% | 1.00 |
+| rank_vol | rank_all,vol_regime | 38 | concentrated_top30 | 30 | 0.0863 | +1.728% | +0.722% | 1.00 |
+| rank_momentum | rank_all,momentum_shape | 37 | concentrated_top30 | 30 | 0.1007 | +1.727% | +0.907% | 1.00 |
 | mom_trend_pair | mom_trend_20_5,mom_trend_60_20 | 18 | concentrated_top30 | 30 | 0.1051 | +1.645% | +0.618% | 1.00 |
-| rank_vol | rank_all,vol_regime | 35 | concentrated_top30 | 30 | 0.0842 | +1.589% | +0.388% | 1.00 |
+| momentum_index | momentum_shape,index_relative | 29 | concentrated_top30 | 30 | 0.0585 | +1.540% | +0.594% | 1.00 |
+| rank_vol_liquidity | rank_all,vol_regime,liquidity_log | 40 | concentrated_top30 | 30 | 0.0980 | +1.439% | +0.073% | 1.00 |
 | mom_trend_60_20 | mom_trend_60_20 | 16 | concentrated_top30 | 30 | 0.0993 | +1.436% | +0.357% | 1.00 |
-| rank_vol_liquidity | rank_all,vol_regime,liquidity_log | 37 | concentrated_top30 | 30 | 0.0871 | +1.397% | +0.173% | 1.00 |
 | baseline | baseline | 14 | slow_learning_top50 | 50 | 0.0816 | +1.362% | +0.457% | 1.00 |
-| rank_all | rank_all | 31 | concentrated_top30 | 30 | 0.0856 | +1.360% | -0.176% | 0.80 |
-| rank_vol_liquidity_momentum | rank_all,vol_regime,liquidity_log,momentum_shape | 40 | concentrated_top30 | 30 | 0.1009 | +1.174% | -0.820% | 0.80 |
+| rank_vol_liquidity_momentum | rank_all,vol_regime,liquidity_log,momentum_shape | 43 | concentrated_top30 | 30 | 0.0944 | +1.309% | -0.137% | 0.80 |
+| index_relative | index_relative | 23 | concentrated_top30 | 30 | 0.0460 | +1.217% | -0.187% | 0.80 |
 | mom_ret3_trend_20_5 | mom_ret3,mom_trend_20_5 | 18 | deep_regularized_top80 | 80 | 0.0868 | +1.048% | -0.403% | 0.80 |
 | vol_regime | vol_regime | 22 | broad_portfolio_top100 | 100 | 0.0911 | +1.018% | +0.333% | 1.00 |
 | mom_ret3 | mom_ret3 | 16 | broad_portfolio_top100 | 100 | 0.0824 | +0.723% | +0.273% | 1.00 |
 | mom_trend_20_5 | mom_trend_20_5 | 16 | broad_portfolio_top100 | 100 | 0.0763 | +0.696% | +0.309% | 1.00 |
+| rank_liquidity_index | rank_all,liquidity_log,index_relative | 42 | concentrated_top30 | 30 | -0.0011 | +0.154% | -2.474% | 0.60 |
 
 ## Full Results
 
@@ -49,18 +52,18 @@
 ### rank_all
 
 - Groups: `rank_all`
-- Feature count: 31
+- Feature count: 34
 
 | experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| concentrated_top30 | 30 | 0.0856 | +1.360% | -0.176% | 0.80 |
-| shallow_regularized_top50 | 50 | 0.0895 | +1.199% | +0.193% | 1.00 |
-| slow_learning_top50 | 50 | 0.0919 | +1.085% | +0.114% | 1.00 |
-| baseline_top50 | 50 | 0.0950 | +1.036% | -0.533% | 0.80 |
-| faster_learning_top50 | 50 | 0.0797 | +0.932% | +0.482% | 1.00 |
-| deep_regularized_top80 | 80 | 0.0822 | +0.898% | -0.262% | 0.80 |
-| broad_portfolio_top100 | 100 | 0.0956 | +0.714% | -0.159% | 0.80 |
-| subsampled_top80 | 80 | 0.0699 | +0.644% | -1.089% | 0.80 |
+| concentrated_top30 | 30 | 0.0919 | +1.763% | +0.674% | 1.00 |
+| baseline_top50 | 50 | 0.0879 | +1.513% | +0.987% | 1.00 |
+| faster_learning_top50 | 50 | 0.0901 | +1.202% | -0.098% | 0.80 |
+| slow_learning_top50 | 50 | 0.0821 | +1.200% | +0.268% | 1.00 |
+| shallow_regularized_top50 | 50 | 0.0855 | +1.160% | +0.450% | 1.00 |
+| subsampled_top80 | 80 | 0.1095 | +1.158% | +0.421% | 1.00 |
+| deep_regularized_top80 | 80 | 0.1077 | +1.129% | +0.224% | 1.00 |
+| broad_portfolio_top100 | 100 | 0.1015 | +0.857% | -0.099% | 0.80 |
 
 ### vol_regime
 
@@ -209,79 +212,127 @@
 ### rank_vol
 
 - Groups: `rank_all,vol_regime`
-- Feature count: 35
+- Feature count: 38
 
 | experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| concentrated_top30 | 30 | 0.0842 | +1.589% | +0.388% | 1.00 |
-| slow_learning_top50 | 50 | 0.0808 | +1.451% | -0.083% | 0.80 |
-| faster_learning_top50 | 50 | 0.0803 | +1.344% | -0.446% | 0.80 |
-| baseline_top50 | 50 | 0.0805 | +1.152% | -0.424% | 0.80 |
-| deep_regularized_top80 | 80 | 0.0704 | +0.961% | -0.614% | 0.80 |
-| shallow_regularized_top50 | 50 | 0.0834 | +0.950% | -0.074% | 0.80 |
-| subsampled_top80 | 80 | 0.1047 | +0.940% | -0.351% | 0.80 |
-| broad_portfolio_top100 | 100 | 0.0833 | +0.745% | -0.353% | 0.80 |
+| concentrated_top30 | 30 | 0.0863 | +1.728% | +0.722% | 1.00 |
+| faster_learning_top50 | 50 | 0.0856 | +1.719% | -0.059% | 0.80 |
+| slow_learning_top50 | 50 | 0.0954 | +1.666% | +0.321% | 1.00 |
+| baseline_top50 | 50 | 0.0885 | +1.176% | -0.832% | 0.80 |
+| shallow_regularized_top50 | 50 | 0.0861 | +1.002% | -0.856% | 0.80 |
+| subsampled_top80 | 80 | 0.0765 | +0.930% | -0.479% | 0.80 |
+| deep_regularized_top80 | 80 | 0.0954 | +0.857% | -0.952% | 0.80 |
+| broad_portfolio_top100 | 100 | 0.0863 | +0.819% | +0.022% | 1.00 |
 
 ### rank_liquidity
 
 - Groups: `rank_all,liquidity_log`
-- Feature count: 33
+- Feature count: 36
 
 | experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| concentrated_top30 | 30 | 0.1097 | +1.989% | +0.528% | 1.00 |
-| slow_learning_top50 | 50 | 0.1053 | +1.443% | +0.064% | 1.00 |
-| shallow_regularized_top50 | 50 | 0.1033 | +1.276% | -0.489% | 0.80 |
-| baseline_top50 | 50 | 0.0897 | +1.176% | -1.006% | 0.80 |
-| deep_regularized_top80 | 80 | 0.0928 | +1.032% | -0.314% | 0.80 |
-| faster_learning_top50 | 50 | 0.0949 | +0.971% | -0.907% | 0.80 |
-| subsampled_top80 | 80 | 0.0988 | +0.915% | -0.760% | 0.80 |
-| broad_portfolio_top100 | 100 | 0.0996 | +0.870% | -0.522% | 0.80 |
+| concentrated_top30 | 30 | 0.0788 | +2.184% | +0.598% | 1.00 |
+| faster_learning_top50 | 50 | 0.0985 | +1.260% | -0.283% | 0.80 |
+| subsampled_top80 | 80 | 0.1124 | +1.203% | +0.009% | 1.00 |
+| shallow_regularized_top50 | 50 | 0.0910 | +1.196% | +0.031% | 1.00 |
+| slow_learning_top50 | 50 | 0.0979 | +1.162% | +0.109% | 1.00 |
+| baseline_top50 | 50 | 0.0904 | +0.868% | -0.532% | 0.80 |
+| broad_portfolio_top100 | 100 | 0.0916 | +0.800% | -0.459% | 0.80 |
+| deep_regularized_top80 | 80 | 0.1027 | +0.705% | -0.541% | 0.80 |
 
 ### rank_momentum
 
 - Groups: `rank_all,momentum_shape`
-- Feature count: 34
-
-| experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| concentrated_top30 | 30 | 0.1155 | +1.838% | +0.837% | 1.00 |
-| slow_learning_top50 | 50 | 0.0813 | +1.380% | +0.487% | 1.00 |
-| faster_learning_top50 | 50 | 0.1027 | +1.125% | +0.406% | 1.00 |
-| broad_portfolio_top100 | 100 | 0.1106 | +0.925% | +0.040% | 1.00 |
-| shallow_regularized_top50 | 50 | 0.1060 | +0.890% | -0.955% | 0.80 |
-| deep_regularized_top80 | 80 | 0.1045 | +0.860% | -0.474% | 0.80 |
-| baseline_top50 | 50 | 0.0950 | +0.771% | +0.012% | 1.00 |
-| subsampled_top80 | 80 | 0.0989 | +0.527% | -0.298% | 0.40 |
-
-### rank_vol_liquidity
-
-- Groups: `rank_all,vol_regime,liquidity_log`
 - Feature count: 37
 
 | experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| concentrated_top30 | 30 | 0.0871 | +1.397% | +0.173% | 1.00 |
-| shallow_regularized_top50 | 50 | 0.0971 | +1.361% | -0.692% | 0.80 |
-| slow_learning_top50 | 50 | 0.0963 | +1.240% | -0.545% | 0.80 |
-| subsampled_top80 | 80 | 0.1043 | +1.123% | -0.081% | 0.80 |
-| baseline_top50 | 50 | 0.0819 | +1.076% | -0.821% | 0.80 |
-| deep_regularized_top80 | 80 | 0.0932 | +1.043% | -0.769% | 0.80 |
-| faster_learning_top50 | 50 | 0.0697 | +1.027% | +0.671% | 1.00 |
-| broad_portfolio_top100 | 100 | 0.0991 | +0.789% | +0.016% | 1.00 |
+| concentrated_top30 | 30 | 0.1007 | +1.727% | +0.907% | 1.00 |
+| slow_learning_top50 | 50 | 0.0906 | +1.035% | +0.314% | 1.00 |
+| faster_learning_top50 | 50 | 0.0776 | +1.015% | -0.055% | 0.80 |
+| shallow_regularized_top50 | 50 | 0.0967 | +0.903% | -0.005% | 0.80 |
+| deep_regularized_top80 | 80 | 0.0892 | +0.769% | +0.335% | 1.00 |
+| baseline_top50 | 50 | 0.0841 | +0.689% | -0.506% | 0.60 |
+| broad_portfolio_top100 | 100 | 0.1029 | +0.597% | -0.109% | 0.80 |
+| subsampled_top80 | 80 | 0.0928 | +0.562% | -0.128% | 0.60 |
 
-### rank_vol_liquidity_momentum
+### index_relative
 
-- Groups: `rank_all,vol_regime,liquidity_log,momentum_shape`
+- Groups: `index_relative`
+- Feature count: 23
+
+| experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| concentrated_top30 | 30 | 0.0460 | +1.217% | -0.187% | 0.80 |
+| faster_learning_top50 | 50 | 0.0532 | +0.760% | -0.079% | 0.80 |
+| subsampled_top80 | 80 | 0.0691 | +0.507% | -0.926% | 0.80 |
+| shallow_regularized_top50 | 50 | 0.0770 | +0.498% | -1.053% | 0.60 |
+| broad_portfolio_top100 | 100 | 0.0554 | +0.247% | -0.746% | 0.40 |
+| deep_regularized_top80 | 80 | 0.0410 | +0.241% | -1.375% | 0.80 |
+| slow_learning_top50 | 50 | 0.0071 | -0.080% | -1.402% | 0.60 |
+| baseline_top50 | 50 | 0.0227 | -0.287% | -2.336% | 0.60 |
+
+### momentum_index
+
+- Groups: `momentum_shape,index_relative`
+- Feature count: 29
+
+| experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| concentrated_top30 | 30 | 0.0585 | +1.540% | +0.594% | 1.00 |
+| faster_learning_top50 | 50 | 0.0576 | +0.622% | -1.387% | 0.60 |
+| shallow_regularized_top50 | 50 | 0.0820 | +0.565% | -2.203% | 0.60 |
+| baseline_top50 | 50 | 0.0268 | +0.376% | -2.186% | 0.80 |
+| deep_regularized_top80 | 80 | 0.0301 | +0.369% | -0.965% | 0.60 |
+| slow_learning_top50 | 50 | 0.0533 | +0.331% | -0.745% | 0.60 |
+| broad_portfolio_top100 | 100 | 0.0561 | +0.063% | -0.915% | 0.60 |
+| subsampled_top80 | 80 | 0.0232 | -0.648% | -2.681% | 0.40 |
+
+### rank_liquidity_index
+
+- Groups: `rank_all,liquidity_log,index_relative`
+- Feature count: 42
+
+| experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| concentrated_top30 | 30 | -0.0011 | +0.154% | -2.474% | 0.60 |
+| broad_portfolio_top100 | 100 | 0.0748 | +0.070% | -0.468% | 0.60 |
+| deep_regularized_top80 | 80 | 0.0063 | -0.078% | -1.407% | 0.60 |
+| faster_learning_top50 | 50 | 0.0038 | -0.136% | -1.089% | 0.60 |
+| shallow_regularized_top50 | 50 | 0.0190 | -0.525% | -2.802% | 0.40 |
+| subsampled_top80 | 80 | -0.0260 | -0.675% | -2.582% | 0.20 |
+| slow_learning_top50 | 50 | 0.0041 | -0.677% | -2.802% | 0.40 |
+| baseline_top50 | 50 | -0.0143 | -0.775% | -2.802% | 0.40 |
+
+### rank_vol_liquidity
+
+- Groups: `rank_all,vol_regime,liquidity_log`
 - Feature count: 40
 
 | experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| concentrated_top30 | 30 | 0.1009 | +1.174% | -0.820% | 0.80 |
-| deep_regularized_top80 | 80 | 0.0959 | +1.035% | -0.696% | 0.80 |
-| faster_learning_top50 | 50 | 0.1019 | +0.974% | -0.656% | 0.60 |
-| shallow_regularized_top50 | 50 | 0.1137 | +0.964% | -0.440% | 0.80 |
-| subsampled_top80 | 80 | 0.0995 | +0.955% | -0.763% | 0.80 |
-| baseline_top50 | 50 | 0.0849 | +0.873% | -0.455% | 0.80 |
-| slow_learning_top50 | 50 | 0.0774 | +0.817% | -0.765% | 0.80 |
-| broad_portfolio_top100 | 100 | 0.0933 | +0.726% | -0.240% | 0.80 |
+| concentrated_top30 | 30 | 0.0980 | +1.439% | +0.073% | 1.00 |
+| baseline_top50 | 50 | 0.0833 | +1.104% | -0.298% | 0.80 |
+| shallow_regularized_top50 | 50 | 0.0866 | +1.072% | -0.157% | 0.80 |
+| subsampled_top80 | 80 | 0.0883 | +0.915% | -0.745% | 0.80 |
+| broad_portfolio_top100 | 100 | 0.1109 | +0.911% | -0.364% | 0.80 |
+| slow_learning_top50 | 50 | 0.0844 | +0.891% | -1.299% | 0.80 |
+| deep_regularized_top80 | 80 | 0.0832 | +0.884% | -0.056% | 0.80 |
+| faster_learning_top50 | 50 | 0.0678 | +0.631% | -0.918% | 0.80 |
+
+### rank_vol_liquidity_momentum
+
+- Groups: `rank_all,vol_regime,liquidity_log,momentum_shape`
+- Feature count: 43
+
+| experiment | top_k | mean IC | mean excess 5d | min excess 5d | win 5d |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| concentrated_top30 | 30 | 0.0944 | +1.309% | -0.137% | 0.80 |
+| slow_learning_top50 | 50 | 0.1005 | +1.133% | -0.884% | 0.80 |
+| deep_regularized_top80 | 80 | 0.0897 | +0.893% | -0.618% | 0.80 |
+| subsampled_top80 | 80 | 0.0778 | +0.880% | -0.445% | 0.80 |
+| shallow_regularized_top50 | 50 | 0.0996 | +0.878% | -0.415% | 0.80 |
+| faster_learning_top50 | 50 | 0.0983 | +0.810% | +0.100% | 1.00 |
+| broad_portfolio_top100 | 100 | 0.0981 | +0.750% | -0.008% | 0.80 |
+| baseline_top50 | 50 | 0.0939 | +0.453% | -0.774% | 0.80 |

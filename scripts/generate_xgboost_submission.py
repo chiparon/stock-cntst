@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
-from baseline_xgboost import DATA_DIR, EMBARGO_DAYS, VAL_DAYS, build_portfolio, rank_ic
+from baseline_xgboost import DATA_DIR, EMBARGO_DAYS, VAL_DAYS, rank_ic
 from csi500_ml.features import (
     FORWARD_HORIZON,
     TARGET_COLUMN,
@@ -97,6 +97,7 @@ def train_xgboost(train_df: pd.DataFrame, eval_df: pd.DataFrame, params: dict, f
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--prices", default=str(DATA_DIR / "prices.parquet"))
+    parser.add_argument("--index", default=str(DATA_DIR / "index.parquet"))
     parser.add_argument("--constituents", default=str(DATA_DIR / "constituents.csv"))
     parser.add_argument("--as-of", default=None, help="YYYYMMDD; defaults to latest date in data")
     parser.add_argument("--experiment", default=DEFAULT_EXPERIMENT)
@@ -114,13 +115,15 @@ def main() -> None:
     prices = pd.read_parquet(args.prices)
     prices["stock_code"] = prices["stock_code"].astype(str).str.zfill(6)
     prices["date"] = pd.to_datetime(prices["date"])
+    index_df = pd.read_parquet(args.index)
+    index_df["date"] = pd.to_datetime(index_df["date"])
     print(
         f"   {len(prices):,} rows, {prices['stock_code'].nunique()} stocks, "
         f"dates {prices['date'].min().date()} to {prices['date'].max().date()}"
     )
 
     print(">> Building features")
-    panel = build_features(prices)
+    panel = build_features(prices, index_df=index_df)
     as_of = pd.Timestamp(args.as_of) if args.as_of else pd.Timestamp(panel["date"].max())
     dates = np.sort(panel["date"].unique())
     as_of_idx = int(np.searchsorted(dates, np.datetime64(as_of)))
