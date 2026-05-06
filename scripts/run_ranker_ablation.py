@@ -110,11 +110,13 @@ def train_ranker_with_columns(
     val_df: pd.DataFrame,
     feature_cols: list[str],
     label_variant: str,
+    params: dict | None = None,
 ) -> xgb.XGBRanker:
     train_sorted = sorted_for_ranker(train_df)
     val_sorted = sorted_for_ranker(val_df)
+    model_params = CURRENT_PARAMS if params is None else params
     model = xgb.XGBRanker(
-        **CURRENT_PARAMS,
+        **model_params,
         objective="rank:pairwise",
         eval_metric="ndcg@30",
         tree_method="hist",
@@ -138,6 +140,7 @@ def train_ranker_for_anchor(
     anchor: pd.Timestamp,
     feature_cols: list[str],
     label_variant: str,
+    params: dict | None = None,
 ) -> xgb.XGBRanker:
     dates = np.sort(panel["date"].unique())
     anchor_idx = int(np.searchsorted(dates, np.datetime64(anchor)))
@@ -145,7 +148,7 @@ def train_ranker_for_anchor(
     train_pool = training_frame(panel, max_date=cutoff)
     train_pool = train_pool.dropna(subset=feature_cols + [TARGET_COLUMN]).copy()
     train_df, val_df = split_internal_train_val(train_pool)
-    return train_ranker_with_columns(train_df, val_df, feature_cols, label_variant)
+    return train_ranker_with_columns(train_df, val_df, feature_cols, label_variant, params=params)
 
 
 def evaluate_scores(

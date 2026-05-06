@@ -220,3 +220,11 @@ regressor control remains stronger: mean 5-day excess `+3.580%`, worst
 `+0.818%`. The best Ranker variant is `top20_binary`, with mean `+2.743%` and
 worst `-1.490%`. Decision: keep Ranker as a week2 research branch, but do not
 replace the control yet.
+
+The rescue sweep is logged in `reports/week2_ranker_rescue_sweep_log.md`. It
+fixed `top20_binary` and swept a compact Ranker parameter grid plus `top_k` /
+weighting rules. Ranker was not rescued: the best Ranker remains mean `+2.743%`,
+worst `-1.490%`, while the best stabilized Ranker alternative improves worst
+loss only to `-0.371%` with mean `+2.579%`. Decision: close Ranker as the
+primary week2 direction and move back to the regressor control for small
+interaction-feature research.

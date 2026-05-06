@@ -62,3 +62,24 @@ Decision: do not replace the regressor control with Ranker yet. If Ranker work
 continues, focus on `top20_binary` with a small parameter sweep and possibly a
 less aggressive portfolio, because the objective-only comparison shows that the
 current Ranker setup loses on worst-window stability.
+
+## Rescue Sweep Readout
+
+The focused rescue sweep is logged in
+`reports/week2_ranker_rescue_sweep_log.md`. It fixed the only viable Ranker
+label (`top20_binary`) and swept a compact grid of regularization settings plus
+`top_k` / weighting rules.
+
+- Control best remains `current_d4_mcw10_l5_sub08`, `top_k=30`,
+  `score_positive`: mean `+3.580%`, worst `+0.818%`.
+- Best Ranker remains the original Ranker parameter set, `top_k=30`,
+  `score_positive`: mean `+2.743%`, worst `-1.490%`.
+- The most promising stabilized Ranker alternative is
+  `ranker_d4_mcw20_l10_sub07`, `top_k=30`, `rank`: mean `+2.579%`, worst
+  `-0.371%`. This improves worst-window loss versus the original Ranker but
+  still fails the acceptance rule and remains below the regressor control.
+
+Decision: close Ranker as a primary week2 direction for now. Keep it as a logged
+negative result. The next week2 research direction should return to the current
+regressor control and test small interaction features, especially momentum times
+volatility and momentum times liquidity.
