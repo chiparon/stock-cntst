@@ -54,6 +54,12 @@ ABLATIONS = [
     ("rank_momentum", ["rank_all", "momentum_shape"]),
     ("index_relative", ["index_relative"]),
     ("momentum_index", ["momentum_shape", "index_relative"]),
+    ("momentum_vol_interaction", ["momentum_shape", "momentum_volatility_interaction"]),
+    ("momentum_liq_interaction", ["momentum_shape", "momentum_liquidity_interaction"]),
+    (
+        "momentum_vol_liq_interaction",
+        ["momentum_shape", "momentum_volatility_interaction", "momentum_liquidity_interaction"],
+    ),
     ("rank_liquidity_index", ["rank_all", "liquidity_log", "index_relative"]),
     ("rank_vol_liquidity", ["rank_all", "vol_regime", "liquidity_log"]),
     ("rank_vol_liquidity_momentum", ["rank_all", "vol_regime", "liquidity_log", "momentum_shape"]),

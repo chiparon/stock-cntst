@@ -48,8 +48,9 @@ def validate(path: Path, constituents_path: Path | None) -> list[str]:
         dups = df.loc[df["stock_code"].duplicated(), "stock_code"].tolist()
         errors.append(f"duplicate stock_code rows: {dups[:5]}...")
 
-    if not df["stock_code"].str.fullmatch(r"\d{6}").all():
-        bad = df.loc[~df["stock_code"].str.fullmatch(r"\d{6}"), "stock_code"].head().tolist()
+    valid_code = df["stock_code"].str.match(r"^\d{6}$")
+    if not valid_code.all():
+        bad = df.loc[~valid_code, "stock_code"].head().tolist()
         errors.append(f"stock_code must be 6 digits, got e.g. {bad}")
 
     try:

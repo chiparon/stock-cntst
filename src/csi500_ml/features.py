@@ -31,6 +31,8 @@ RANK_NORMALIZED_BASES = [
     "volume_z_20d", "log_volume_z_20d", "turnover_ma_20d", "log_turnover_ma_20d",
     "close_over_ma20", "close_over_ma60", "rsi_14",
     "ret_20d_minus_5d", "ret_60d_minus_20d",
+    "ret_3d_x_vol_20d", "ret_20d_minus_5d_x_vol_20d", "ret_60d_minus_20d_x_vol_20d",
+    "ret_3d_x_log_turnover_20d", "ret_20d_minus_5d_x_log_turnover_20d", "ret_60d_minus_20d_x_log_turnover_20d",
 ]
 
 FEATURE_GROUPS = {
@@ -54,6 +56,14 @@ FEATURE_GROUPS = {
         "index_ret_5d", "index_ret_20d", "index_ret_60d",
         "rel_ret_5d", "rel_ret_20d", "rel_ret_60d",
         "rel_ret_5d_rank", "rel_ret_20d_rank", "rel_ret_60d_rank",
+    ],
+    "momentum_volatility_interaction": [
+        "ret_3d_x_vol_20d", "ret_20d_minus_5d_x_vol_20d", "ret_60d_minus_20d_x_vol_20d",
+        "ret_3d_x_vol_20d_rank", "ret_20d_minus_5d_x_vol_20d_rank", "ret_60d_minus_20d_x_vol_20d_rank",
+    ],
+    "momentum_liquidity_interaction": [
+        "ret_3d_x_log_turnover_20d", "ret_20d_minus_5d_x_log_turnover_20d", "ret_60d_minus_20d_x_log_turnover_20d",
+        "ret_3d_x_log_turnover_20d_rank", "ret_20d_minus_5d_x_log_turnover_20d_rank", "ret_60d_minus_20d_x_log_turnover_20d_rank",
     ],
 }
 
@@ -105,6 +115,13 @@ def _per_stock_features(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df["turnover_ma_20d"] = np.nan
         df["log_turnover_ma_20d"] = np.nan
+
+    df["ret_3d_x_vol_20d"] = df["ret_3d"] * df["vol_20d"]
+    df["ret_20d_minus_5d_x_vol_20d"] = df["ret_20d_minus_5d"] * df["vol_20d"]
+    df["ret_60d_minus_20d_x_vol_20d"] = df["ret_60d_minus_20d"] * df["vol_20d"]
+    df["ret_3d_x_log_turnover_20d"] = df["ret_3d"] * df["log_turnover_ma_20d"]
+    df["ret_20d_minus_5d_x_log_turnover_20d"] = df["ret_20d_minus_5d"] * df["log_turnover_ma_20d"]
+    df["ret_60d_minus_20d_x_log_turnover_20d"] = df["ret_60d_minus_20d"] * df["log_turnover_ma_20d"]
 
     df["close_over_ma20"] = close / close.rolling(20).mean() - 1.0
     df["close_over_ma60"] = close / close.rolling(60).mean() - 1.0
