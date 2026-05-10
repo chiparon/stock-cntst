@@ -9,5 +9,7 @@ submissions/
 trading/
 .cc-agent/
 .claude/
+.codex/
+.codex_deps/
 .mcp.json
 CLAUDE.md
