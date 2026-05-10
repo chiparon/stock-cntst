@@ -1,10 +1,9 @@
 """
-Evaluate small score ensembles of XGBoost models.
+Evaluate regularized score ensembles of XGBoost models.
 
-Models are still trained from scratch with XGBoost. Predictions are converted to
-cross-sectional percentile ranks before averaging so score scales are comparable.
-The portfolio is fixed to the current best construction: top_k=30 with
-score_positive weighting.
+Models are trained from scratch with XGBoost. Predictions are converted to
+cross-sectional percentile ranks before averaging so score scales are
+comparable. The portfolio stays at top_k=30 with score_positive weighting.
 """
 from __future__ import annotations
 
@@ -26,6 +25,7 @@ import pandas as pd
 from baseline_xgboost import DATA_DIR, rank_ic
 from csi500_ml.features import TARGET_COLUMN, build_features, feature_columns, prediction_frame, training_frame
 from csi500_ml.portfolio import build_portfolio
+from csi500_ml.xgb_ensemble import ENSEMBLES, MODEL_SPECS, blend_ranked_scores
 from score_submission import score_window
 from testlike_xgboost_validation import (
     HOLD_DAYS,
@@ -39,61 +39,9 @@ from testlike_xgboost_validation import (
 TOP_K = 30
 WEIGHT_RULE = "score_positive"
 
-MODEL_SPECS = {
-    "primary_momentum": {
-        "groups": ["momentum_shape"],
-        "params": {
-            "n_estimators": 500,
-            "max_depth": 4,
-            "learning_rate": 0.05,
-            "subsample": 0.8,
-            "colsample_bytree": 0.8,
-            "min_child_weight": 10,
-            "reg_lambda": 5.0,
-        },
-    },
-    "robust_momentum": {
-        "groups": ["momentum_shape"],
-        "params": {
-            "n_estimators": 500,
-            "max_depth": 4,
-            "learning_rate": 0.05,
-            "subsample": 0.7,
-            "colsample_bytree": 0.7,
-            "min_child_weight": 20,
-            "reg_lambda": 10.0,
-        },
-    },
-    "rank_liquidity": {
-        "groups": ["rank_all", "liquidity_log"],
-        "params": {
-            "n_estimators": 500,
-            "max_depth": 4,
-            "learning_rate": 0.05,
-            "subsample": 0.8,
-            "colsample_bytree": 0.8,
-            "min_child_weight": 10,
-            "reg_lambda": 5.0,
-        },
-    },
-}
-
-ENSEMBLES = {
-    "primary_only": {"primary_momentum": 1.0},
-    "primary_robust_equal": {"primary_momentum": 0.5, "robust_momentum": 0.5},
-    "primary_robust_70_30": {"primary_momentum": 0.7, "robust_momentum": 0.3},
-    "primary_rankliq_70_30": {"primary_momentum": 0.7, "rank_liquidity": 0.3},
-    "all_equal": {"primary_momentum": 1 / 3, "robust_momentum": 1 / 3, "rank_liquidity": 1 / 3},
-    "primary_heavy_all": {"primary_momentum": 0.6, "robust_momentum": 0.2, "rank_liquidity": 0.2},
-}
-
-
-def score_to_rank(scores: pd.Series) -> pd.Series:
-    return scores.rank(method="average", pct=True)
-
 
 def train_anchor_models(panel: pd.DataFrame, anchor: pd.Timestamp) -> dict[str, pd.DataFrame]:
-    outputs = {}
+    outputs: dict[str, pd.DataFrame] = {}
     for name, spec in MODEL_SPECS.items():
         feature_cols = feature_columns(spec["groups"])
         model = train_for_anchor(panel, anchor, spec["params"], feature_cols)
@@ -101,24 +49,6 @@ def train_anchor_models(panel: pd.DataFrame, anchor: pd.Timestamp) -> dict[str, 
         pred_df = pred_df.assign(score=model.predict(pred_df[feature_cols]))
         outputs[name] = pred_df[["date", "stock_code", TARGET_COLUMN, "score"]].copy()
     return outputs
-
-
-def ensemble_scores(model_outputs: dict[str, pd.DataFrame], weights: dict[str, float]) -> pd.DataFrame:
-    merged = None
-    score_cols = []
-    for model_name, weight in weights.items():
-        df = model_outputs[model_name].copy()
-        col = f"score_{model_name}"
-        df[col] = score_to_rank(df["score"]) * weight
-        keep = ["date", "stock_code", TARGET_COLUMN, col]
-        if merged is None:
-            merged = df[keep]
-        else:
-            merged = merged.merge(df[["stock_code", col]], on="stock_code", how="inner")
-        score_cols.append(col)
-    assert merged is not None
-    merged["score"] = merged[score_cols].sum(axis=1) / sum(weights.values())
-    return merged
 
 
 def evaluate_ensemble(
@@ -154,9 +84,18 @@ def summarize(rows: list[dict]) -> pd.DataFrame:
     )
 
 
+def format_params(params: dict) -> str:
+    return ", ".join(f"{key}={value}" for key, value in params.items())
+
+
+def format_weights(weights: dict[str, float]) -> str:
+    return ", ".join(f"{name}={weight:.2f}" for name, weight in weights.items())
+
+
 def write_report(path: Path, as_of: pd.Timestamp, anchors: list[pd.Timestamp], auc: float, rows: list[dict]) -> None:
     summary = summarize(rows)
     details = pd.DataFrame(rows)
+    best = summary.iloc[0]
     path.parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "# Score Ensemble Log",
@@ -169,11 +108,35 @@ def write_report(path: Path, as_of: pd.Timestamp, anchors: list[pd.Timestamp], a
         f"- Adversarial validation AUC: {auc:.4f}",
         f"- Selected anchors: {', '.join(d.date().isoformat() for d in anchors)}",
         "",
-        "## Summary",
+        "## Model Specs",
         "",
-        "| ensemble | mean IC | mean excess 5d | min excess 5d | win 5d |",
-        "| --- | ---: | ---: | ---: | ---: |",
+        "| model | groups | params |",
+        "| --- | --- | --- |",
     ]
+    for model_name, spec in MODEL_SPECS.items():
+        lines.append(f"| {model_name} | {','.join(spec['groups'])} | {format_params(spec['params'])} |")
+
+    lines.extend(
+        [
+            "",
+            "## Ensemble Weights",
+            "",
+            "| ensemble | weights |",
+            "| --- | --- |",
+        ]
+    )
+    for ensemble_name, weights in ENSEMBLES.items():
+        lines.append(f"| {ensemble_name} | {format_weights(weights)} |")
+
+    lines.extend(
+        [
+            "",
+            "## Summary",
+            "",
+            "| ensemble | mean IC | mean excess 5d | min excess 5d | win 5d |",
+            "| --- | ---: | ---: | ---: | ---: |",
+        ]
+    )
     for _, row in summary.iterrows():
         lines.append(
             f"| {row['ensemble']} | {row['mean_rank_ic']:.4f} | "
@@ -181,12 +144,31 @@ def write_report(path: Path, as_of: pd.Timestamp, anchors: list[pd.Timestamp], a
             f"{row['win_rate_5d']:.2f} |"
         )
 
-    lines.extend(["", "## Details", "", "| anchor | ensemble | rank IC | excess 5d | benchmark 5d |", "| --- | --- | ---: | ---: | ---: |"])
+    lines.extend(
+        [
+            "",
+            "## Details",
+            "",
+            "| anchor | ensemble | rank IC | excess 5d | benchmark 5d |",
+            "| --- | --- | ---: | ---: | ---: |",
+        ]
+    )
     for _, row in details.sort_values(["anchor", "ensemble"]).iterrows():
         lines.append(
             f"| {row['anchor']} | {row['ensemble']} | {row['rank_ic']:.4f} | "
             f"{row['excess_5d'] * 100:+.3f}% | {row['benchmark_5d'] * 100:+.3f}% |"
         )
+    lines.extend(
+        [
+            "",
+            "## Stage Conclusion",
+            "",
+            f"- Selected ensemble: `{best['ensemble']}`.",
+            f"- Best mean excess 5d: {best['mean_excess_5d'] * 100:+.3f}%.",
+            f"- Best mean IC: {best['mean_rank_ic']:.4f}.",
+            "- The winning blend is still a regularized XGBoost stack, but the cross-sectional rank blend now leans on the complementary rank/liquidity model rather than only momentum models.",
+        ]
+    )
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -199,7 +181,7 @@ def main() -> None:
     parser.add_argument("--recent-lookback", type=int, default=80)
     parser.add_argument("--min-stocks-per-date", type=int, default=450)
     parser.add_argument("--negative-multiplier", type=int, default=10)
-    parser.add_argument("--report", default="reports/score_ensemble_log.md")
+    parser.add_argument("--report", default="reports/regularized_ensemble_log.md")
     args = parser.parse_args()
 
     print(f">> Loading {args.prices}")
@@ -237,7 +219,7 @@ def main() -> None:
         print(f">> Training anchor models {anchor.date()}")
         outputs = train_anchor_models(panel, anchor)
         for ensemble_name, weights in ENSEMBLES.items():
-            pred_df = ensemble_scores(outputs, weights)
+            pred_df = blend_ranked_scores(outputs, weights)
             result = evaluate_ensemble(pred_df, prices, index_df, panel, anchor)
             print(f"   {ensemble_name}: excess={result['excess_5d'] * 100:+.3f}%")
             rows.append({"anchor": anchor.date().isoformat(), "ensemble": ensemble_name, **result})

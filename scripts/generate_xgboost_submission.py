@@ -1,16 +1,16 @@
 """
-Generate a CSI500 submission from a selected XGBoost experiment and feature set.
+Generate a CSI500 submission from a selected XGBoost experiment or a
+regularized rank-blended ensemble.
 
-This is the production companion to testlike_xgboost_validation.py: choose an
-experiment that passed the 5-day validation gate, train on all available labeled
-history up to the as-of cutoff, predict the latest cross-section, and write a
-validated portfolio CSV.
+The single-model path preserves the original baseline flow. The default path is
+an ensemble that blends per-date percentile ranks from multiple strongly
+regularized XGBoost models before building the portfolio.
 
 Usage
 -----
   python scripts/generate_xgboost_submission.py
-  python scripts/generate_xgboost_submission.py --experiment slow_learning_top50 --feature-groups ""
-  python scripts/generate_xgboost_submission.py --experiment concentrated_top30 --feature-groups momentum_shape
+  python scripts/generate_xgboost_submission.py --mode single --experiment slow_learning_top50
+  python scripts/generate_xgboost_submission.py --mode ensemble --ensemble primary_rankliq_70_30
 """
 from __future__ import annotations
 
@@ -27,7 +27,6 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 
 import numpy as np
 import pandas as pd
-import xgboost as xgb
 
 from baseline_xgboost import DATA_DIR, EMBARGO_DAYS, VAL_DAYS, rank_ic
 from csi500_ml.features import (
@@ -39,12 +38,19 @@ from csi500_ml.features import (
     training_frame,
 )
 from csi500_ml.portfolio import build_portfolio
-from stage1_xgboost_sweep import EXPERIMENTS, RANDOM_SEED
+from csi500_ml.xgb_ensemble import (
+    DEFAULT_ENSEMBLE,
+    DEFAULT_WEIGHT_RULE,
+    ENSEMBLES,
+    MODEL_SPECS,
+    blend_ranked_scores,
+    train_xgboost,
+)
+from stage1_xgboost_sweep import EXPERIMENTS
 from validate_submission import validate
 
 
 DEFAULT_EXPERIMENT = "concentrated_top30"
-DEFAULT_FEATURE_GROUPS = "momentum_shape"
 
 
 def parse_groups(value: str | None) -> list[str]:
@@ -57,6 +63,13 @@ def experiment_by_name(name: str) -> dict:
             return spec
     available = ", ".join(spec["name"] for spec in EXPERIMENTS)
     raise ValueError(f"Unknown experiment {name!r}; available: {available}")
+
+
+def ensemble_by_name(name: str) -> dict[str, float]:
+    if name in ENSEMBLES:
+        return ENSEMBLES[name]
+    available = ", ".join(ENSEMBLES)
+    raise ValueError(f"Unknown ensemble {name!r}; available: {available}")
 
 
 def trading_date_at(dates: np.ndarray, idx: int) -> pd.Timestamp:
@@ -76,22 +89,51 @@ def split_train_eval(train_pool: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFra
     return train_df, eval_df, train_end
 
 
-def train_xgboost(train_df: pd.DataFrame, eval_df: pd.DataFrame, params: dict, feature_cols: list[str]) -> xgb.XGBRegressor:
-    model = xgb.XGBRegressor(
-        **params,
-        objective="reg:squarederror",
-        tree_method="hist",
-        n_jobs=-1,
-        early_stopping_rounds=30,
-        random_state=RANDOM_SEED,
-    )
-    model.fit(
-        train_df[feature_cols],
-        train_df[TARGET_COLUMN],
-        eval_set=[(eval_df[feature_cols], eval_df[TARGET_COLUMN])],
-        verbose=False,
-    )
-    return model
+def fit_and_score_model(
+    train_df: pd.DataFrame,
+    eval_df: pd.DataFrame,
+    pred_df: pd.DataFrame,
+    params: dict,
+    feature_cols: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    model = train_xgboost(train_df, eval_df, feature_cols, params)
+
+    eval_out = eval_df[["date", "stock_code", TARGET_COLUMN]].copy()
+    eval_out["score"] = model.predict(eval_df[feature_cols])
+
+    pred_out = pred_df[["date", "stock_code"]].copy()
+    if TARGET_COLUMN in pred_df.columns:
+        pred_out[TARGET_COLUMN] = pred_df[TARGET_COLUMN].values
+    pred_out["score"] = model.predict(pred_df[feature_cols])
+    return eval_out, pred_out
+
+
+def build_single_model_submission(
+    train_df: pd.DataFrame,
+    eval_df: pd.DataFrame,
+    pred_df: pd.DataFrame,
+    params: dict,
+    feature_cols: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    return fit_and_score_model(train_df, eval_df, pred_df, params, feature_cols)
+
+
+def build_ensemble_submission(
+    train_df: pd.DataFrame,
+    eval_df: pd.DataFrame,
+    pred_df: pd.DataFrame,
+    ensemble_name: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    weights = ensemble_by_name(ensemble_name)
+    eval_outputs: dict[str, pd.DataFrame] = {}
+    pred_outputs: dict[str, pd.DataFrame] = {}
+    for model_name in weights:
+        spec = MODEL_SPECS[model_name]
+        feature_cols = feature_columns(spec["groups"])
+        eval_out, pred_out = fit_and_score_model(train_df, eval_df, pred_df, spec["params"], feature_cols)
+        eval_outputs[model_name] = eval_out
+        pred_outputs[model_name] = pred_out
+    return blend_ranked_scores(eval_outputs, weights), blend_ranked_scores(pred_outputs, weights)
 
 
 def main() -> None:
@@ -100,16 +142,14 @@ def main() -> None:
     parser.add_argument("--index", default=str(DATA_DIR / "index.parquet"))
     parser.add_argument("--constituents", default=str(DATA_DIR / "constituents.csv"))
     parser.add_argument("--as-of", default=None, help="YYYYMMDD; defaults to latest date in data")
+    parser.add_argument("--mode", choices=["single", "ensemble"], default="ensemble")
     parser.add_argument("--experiment", default=DEFAULT_EXPERIMENT)
-    parser.add_argument("--feature-groups", default=DEFAULT_FEATURE_GROUPS)
-    parser.add_argument("--top-k", type=int, default=None, help="Override experiment top_k.")
-    parser.add_argument("--weight-rule", default="score_positive", choices=["rank", "equal", "score_positive"])
+    parser.add_argument("--feature-groups", default="momentum_shape")
+    parser.add_argument("--ensemble", default=DEFAULT_ENSEMBLE)
+    parser.add_argument("--top-k", type=int, default=None, help="Override experiment or ensemble top_k.")
+    parser.add_argument("--weight-rule", default=DEFAULT_WEIGHT_RULE, choices=["rank", "equal", "score_positive"])
     parser.add_argument("--out", default="submissions/week1_candidate.csv")
     args = parser.parse_args()
-
-    spec = experiment_by_name(args.experiment)
-    enabled_groups = parse_groups(args.feature_groups)
-    feature_cols = feature_columns(enabled_groups)
 
     print(f">> Loading {args.prices}")
     prices = pd.read_parquet(args.prices)
@@ -128,26 +168,52 @@ def main() -> None:
     dates = np.sort(panel["date"].unique())
     as_of_idx = int(np.searchsorted(dates, np.datetime64(as_of)))
     cutoff = trading_date_at(dates, as_of_idx - FORWARD_HORIZON)
-    train_pool = training_frame(panel, max_date=cutoff).dropna(subset=feature_cols + [TARGET_COLUMN])
-    train_df, eval_df, train_end = split_train_eval(train_pool)
-    top_k = args.top_k if args.top_k is not None else spec["top_k"]
-    print(f"   experiment: {spec['name']}, top_k={top_k}, weight_rule={args.weight_rule}")
-    print(f"   feature groups: {', '.join(enabled_groups) if enabled_groups else 'baseline'}")
-    print(f"   feature count: {len(feature_cols)}")
-    print(f"   train rows: {len(train_df):,} up to {train_end.date()}")
-    print(f"   eval rows: {len(eval_df):,} from {eval_df['date'].min().date()}")
 
-    print(">> Training XGBoost")
-    model = train_xgboost(train_df, eval_df, spec["params"], feature_cols)
-    eval_pred = model.predict(eval_df[feature_cols])
-    ic = rank_ic(eval_df[TARGET_COLUMN].to_numpy(), eval_pred, eval_df["date"].to_numpy())
-    print(f"   internal eval rank IC: {ic:.4f}")
+    if args.mode == "single":
+        enabled_groups = parse_groups(args.feature_groups)
+        feature_cols = feature_columns(enabled_groups)
+        train_pool = training_frame(panel, max_date=cutoff).dropna(subset=feature_cols + [TARGET_COLUMN])
+        train_df, eval_df, train_end = split_train_eval(train_pool)
+        top_k = args.top_k if args.top_k is not None else experiment_by_name(args.experiment)["top_k"]
+        print(f"   mode: single model")
+        print(f"   experiment: {args.experiment}, top_k={top_k}, weight_rule={args.weight_rule}")
+        print(f"   feature groups: {', '.join(enabled_groups) if enabled_groups else 'baseline'}")
+        print(f"   feature count: {len(feature_cols)}")
+        print(f"   train rows: {len(train_df):,} up to {train_end.date()}")
+        print(f"   eval rows: {len(eval_df):,} from {eval_df['date'].min().date()}")
+
+        print(">> Training XGBoost")
+        spec = experiment_by_name(args.experiment)
+        eval_pred, pred_pred = build_single_model_submission(train_df, eval_df, prediction_frame(panel, as_of=as_of).dropna(subset=feature_cols), spec["params"], feature_cols)
+        ic = rank_ic(eval_pred[TARGET_COLUMN].to_numpy(), eval_pred["score"].to_numpy(), eval_pred["date"].to_numpy())
+        print(f"   internal eval rank IC: {ic:.4f}")
+        pred_df = pred_pred
+    else:
+        ensemble_weights = ensemble_by_name(args.ensemble)
+        all_feature_cols: list[str] = []
+        for model_name in ensemble_weights:
+            spec = MODEL_SPECS[model_name]
+            all_feature_cols.extend(feature_columns(spec["groups"]))
+        feature_cols = list(dict.fromkeys(all_feature_cols))
+        train_pool = training_frame(panel, max_date=cutoff).dropna(subset=feature_cols + [TARGET_COLUMN])
+        train_df, eval_df, train_end = split_train_eval(train_pool)
+        top_k = args.top_k if args.top_k is not None else 30
+        print(f"   mode: ensemble")
+        print(f"   ensemble: {args.ensemble}, top_k={top_k}, weight_rule={args.weight_rule}")
+        print(f"   ensemble weights: {', '.join(f'{k}={v:.2f}' for k, v in ensemble_weights.items())}")
+        print(f"   feature count (union): {len(feature_cols)}")
+        print(f"   train rows: {len(train_df):,} up to {train_end.date()}")
+        print(f"   eval rows: {len(eval_df):,} from {eval_df['date'].min().date()}")
+
+        pred_source = prediction_frame(panel, as_of=as_of).dropna(subset=feature_cols)
+        print(">> Training ensemble members")
+        eval_pred, pred_pred = build_ensemble_submission(train_df, eval_df, pred_source, args.ensemble)
+        ic = rank_ic(eval_pred[TARGET_COLUMN].to_numpy(), eval_pred["score"].to_numpy(), eval_pred["date"].to_numpy())
+        print(f"   internal ensemble rank IC: {ic:.4f}")
+        pred_df = pred_pred
 
     print(">> Predicting portfolio")
-    pred_df = prediction_frame(panel, as_of=as_of).dropna(subset=feature_cols)
-    pred_df = pred_df.assign(score=model.predict(pred_df[feature_cols]))
     print(f"   as of {pred_df['date'].iloc[0].date()}, scoring {len(pred_df)} stocks")
-
     weights = build_portfolio(pred_df.set_index("stock_code")["score"], top_k=top_k, weight_rule=args.weight_rule)
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
